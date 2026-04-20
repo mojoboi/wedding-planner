@@ -113,7 +113,7 @@
   <!-- Firebase Setup -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, setDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBax7I4zS7MGvMfCMjq2p25BliKqNZFnlM",
@@ -126,7 +126,7 @@
 
     const app = initializeApp(firebaseConfig);
     window.db = getFirestore(app);
-    window.fs = { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, setDoc };
+    window.fs = { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, setDoc, query, orderBy, limit };
   </script>
 
   <!-- React & Babel Scripts -->
@@ -200,21 +200,30 @@
       return 'text-slate-900 dark:text-slate-100'; 
     };
 
-    // --- 12 Pastel Colors ---
+    // --- 12 Pastel Colors (Updated with vibrant Dark Mode glows) ---
     const PASTEL_COLORS = [
-      { id: 'custom-red', bg: 'bg-[#ffc9c9] dark:bg-[#ffc9c9]/20', border: 'border-[#ffaaaa] dark:border-[#ffc9c9]/30' },
-      { id: 'mint', bg: 'bg-emerald-100 dark:bg-emerald-500/20', border: 'border-emerald-200 dark:border-emerald-500/30' },
-      { id: 'sky', bg: 'bg-sky-100 dark:bg-sky-500/20', border: 'border-sky-200 dark:border-sky-500/30' },
-      { id: 'peach', bg: 'bg-orange-100 dark:bg-orange-500/20', border: 'border-orange-200 dark:border-orange-500/30' },
-      { id: 'lilac', bg: 'bg-purple-100 dark:bg-purple-500/20', border: 'border-purple-200 dark:border-purple-500/30' },
-      { id: 'lemon', bg: 'bg-amber-100 dark:bg-amber-500/20', border: 'border-amber-200 dark:border-amber-500/30' },
-      { id: 'rose', bg: 'bg-rose-100 dark:bg-rose-500/20', border: 'border-rose-200 dark:border-rose-500/30' },
-      { id: 'indigo', bg: 'bg-indigo-100 dark:bg-indigo-500/20', border: 'border-indigo-200 dark:border-indigo-500/30' },
-      { id: 'teal', bg: 'bg-teal-100 dark:bg-teal-500/20', border: 'border-teal-200 dark:border-teal-500/30' },
-      { id: 'yellow', bg: 'bg-yellow-100 dark:bg-yellow-500/20', border: 'border-yellow-200 dark:border-yellow-500/30' },
-      { id: 'pink', bg: 'bg-pink-100 dark:bg-pink-500/20', border: 'border-pink-200 dark:border-pink-500/30' },
-      { id: 'slate', bg: 'bg-slate-200 dark:bg-slate-500/20', border: 'border-slate-300 dark:border-slate-500/30' }
+      { id: 'custom-red', bg: 'bg-[#ffc9c9] dark:bg-rose-500/10 dark:border-rose-400/30 dark:shadow-[0_0_15px_rgba(251,113,133,0.15)]' },
+      { id: 'mint', bg: 'bg-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-400/30 dark:shadow-[0_0_15px_rgba(52,211,153,0.15)]' },
+      { id: 'sky', bg: 'bg-sky-100 dark:bg-sky-500/10 dark:border-sky-400/30 dark:shadow-[0_0_15px_rgba(56,189,248,0.15)]' },
+      { id: 'peach', bg: 'bg-orange-100 dark:bg-orange-500/10 dark:border-orange-400/30 dark:shadow-[0_0_15px_rgba(251,146,60,0.15)]' },
+      { id: 'lilac', bg: 'bg-purple-100 dark:bg-purple-500/10 dark:border-purple-400/30 dark:shadow-[0_0_15px_rgba(192,132,252,0.15)]' },
+      { id: 'lemon', bg: 'bg-amber-100 dark:bg-amber-500/10 dark:border-amber-400/30 dark:shadow-[0_0_15px_rgba(251,191,36,0.15)]' },
+      { id: 'rose', bg: 'bg-rose-100 dark:bg-rose-500/10 dark:border-rose-400/30 dark:shadow-[0_0_15px_rgba(251,113,133,0.15)]' },
+      { id: 'indigo', bg: 'bg-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-400/30 dark:shadow-[0_0_15px_rgba(129,140,248,0.15)]' },
+      { id: 'teal', bg: 'bg-teal-100 dark:bg-teal-500/10 dark:border-teal-400/30 dark:shadow-[0_0_15px_rgba(45,212,191,0.15)]' },
+      { id: 'yellow', bg: 'bg-yellow-100 dark:bg-yellow-500/10 dark:border-yellow-400/30 dark:shadow-[0_0_15px_rgba(250,204,21,0.15)]' },
+      { id: 'pink', bg: 'bg-pink-100 dark:bg-pink-500/10 dark:border-pink-400/30 dark:shadow-[0_0_15px_rgba(244,114,182,0.15)]' },
+      { id: 'slate', bg: 'bg-slate-200 dark:bg-slate-500/10 dark:border-slate-400/30 dark:shadow-[0_0_15px_rgba(148,163,184,0.15)]' }
     ];
+
+    // Safely upgrade old saved colors to the new glowing ones
+    const getVibrantColor = (savedColor) => {
+      if (!savedColor) return PASTEL_COLORS[0].bg;
+      if (savedColor.includes('shadow-[')) return savedColor;
+      const baseName = savedColor.split(' ')[0];
+      const match = PASTEL_COLORS.find(c => c.bg.startsWith(baseName));
+      return match ? match.bg : savedColor;
+    };
 
     function App() {
       // --- Firebase Init State ---
@@ -263,6 +272,16 @@
         title: '', date: '', expectedCost: '', actualCost: '', paid: false, vendor: '', notes: '', side: '', paidBy: [], color: PASTEL_COLORS[0].bg
       });
 
+      // --- Body Scroll Lock for Modals ---
+      useEffect(() => {
+        if (isModalOpen || confirmDialog.isOpen || authPrompt.isOpen) {
+          document.body.style.overflow = 'hidden';
+        } else {
+          document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+      }, [isModalOpen, confirmDialog.isOpen, authPrompt.isOpen]);
+
       // --- 1. Wait for Firebase Module to Load ---
       useEffect(() => {
         const checkFirebase = setInterval(() => {
@@ -288,9 +307,15 @@
           setUsersList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
 
-        const unsubActivities = window.fs.onSnapshot(window.fs.collection(window.db, 'activities'), (snapshot) => {
+        // Use query limits to prevent infinite activity array growth
+        const q = window.fs.query(
+          window.fs.collection(window.db, 'activities'), 
+          window.fs.orderBy('timestamp', 'desc'), 
+          window.fs.limit(100)
+        );
+
+        const unsubActivities = window.fs.onSnapshot(q, (snapshot) => {
           const fetchedActs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-          fetchedActs.sort((a, b) => b.timestamp - a.timestamp);
           setActivities(fetchedActs);
         });
 
@@ -386,7 +411,12 @@
       // --- Auth Actions ---
       const persistUser = (userObj) => {
         setCurrentUser(userObj);
-        if (rememberMe) {
+        
+        const isInLocal = !!localStorage.getItem('weddingApp_user');
+        const isInSession = !!sessionStorage.getItem('weddingApp_user');
+
+        // Logic to keep user in their preferred storage medium if permissions sync
+        if (isInLocal || (rememberMe && !isInSession)) {
           localStorage.setItem('weddingApp_user', JSON.stringify(userObj));
           sessionStorage.removeItem('weddingApp_user');
         } else {
@@ -410,11 +440,8 @@
             const docRef = await window.fs.addDoc(window.fs.collection(window.db, 'users'), { name: name, isAdmin: isFirstUser });
             const newUser = { id: docRef.id, name: name, isAdmin: isFirstUser };
             
-            if (isFirstUser) {
-               persistUser(newUser);
-            } else {
-               persistUser(newUser);
-            }
+            // First user never needs a pin, they become the master admin
+            persistUser(newUser);
 
           } catch (err) {
             console.error(err);
@@ -447,7 +474,7 @@
       };
 
       const updateSetting = (key, value) => {
-        setSettings(prev => ({ ...prev, [key]: value }));
+        setSettings(prev => ({ ...prev, [key]: value })); // Strictly updates local state & storage
       };
 
       const deleteActivity = async (id) => {
@@ -664,7 +691,7 @@
         return new Intl.NumberFormat('en-IN', { style: 'currency', currency: isCAD ? 'CAD' : 'INR', maximumFractionDigits: isCAD ? 2 : 0 }).format(converted);
       };
 
-      const getInitials = (name) => name ? name.substring(0, 2).toUpperCase() : 'U';
+      const getInitials = (name) => (name && typeof name === 'string') ? name.substring(0, 2).toUpperCase() : 'U';
 
       // --- Loading Screen while waiting for Firebase ---
       if (!firebaseReady) {
@@ -826,7 +853,7 @@
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="text-sm sm:text-base text-slate-700 dark:text-slate-200">
-                                <span className="font-bold">{act.userName}</span> {act.details}
+                                <span className="font-bold">{act.userName || 'Unknown'}</span> {act.details}
                               </div>
                               <div className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 mt-1 font-semibold">
                                 {formatTimeAgo(act.timestamp)}
@@ -847,11 +874,7 @@
 
               {/* TAB: SETTINGS */}
               {activeTab === 'settings' && (
-                <div className="max-w-xl mx-auto space-y-6 animate-pop-in">
-                  <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-800 dark:text-white flex items-center gap-2">
-                    <IconSettings className="w-6 h-6 sm:w-7 sm:h-7 text-slate-400 dark:text-slate-500" /> App Settings
-                  </h2>
-
+                <div className="max-w-xl mx-auto animate-pop-in pt-2 sm:pt-4">
                   <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-700 space-y-6 transition-colors duration-300">
                     
                     {/* Theme Toggle */}
@@ -1121,7 +1144,7 @@
                         const dayExp = day.events?.reduce((sum, e) => sum + (parseFloat(e?.expectedCost ?? e?.cost) || 0), 0) || 0;
                         const dayAct = day.events?.reduce((sum, e) => sum + (parseFloat(e?.actualCost) || 0), 0) || 0;
                         const isCollapsed = collapsedDays[day.id];
-                        const dayBg = day.color || 'bg-[#ffc9c9] dark:bg-[#ffc9c9]/20';
+                        const dayBg = getVibrantColor(day.color);
 
                         return (
                         <div key={day.id} className={`${dayBg} rounded-2xl sm:rounded-[1.5rem] flex flex-col h-fit border border-transparent shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md`}>
@@ -1217,9 +1240,9 @@
                                     {/* Event Title & Costs (Always Visible) */}
                                     <div className={`flex justify-between items-start ${isEventCollapsed ? '' : 'mb-3 sm:mb-4'}`}>
                                       <div className="flex-1 flex items-start gap-1.5 sm:gap-2 pr-2 cursor-pointer select-none" onClick={() => toggleEventCollapse(ev.id)}>
-                                        <button className="mt-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                                        <div className="mt-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                                           {isEventCollapsed ? <IconChevronDown className="w-4 h-4 sm:w-5 sm:h-5"/> : <IconChevronUp className="w-4 h-4 sm:w-5 sm:h-5"/>}
-                                        </button>
+                                        </div>
                                         <span className={`text-lg sm:text-xl font-black tracking-tight leading-tight ${ev.paid ? 'text-slate-400 dark:text-slate-500 line-through decoration-slate-300 dark:decoration-slate-600' : 'text-slate-800 dark:text-white'}`}>{ev.title}</span>
                                       </div>
                                       
